@@ -1062,13 +1062,13 @@ PHP_FUNCTION(ssh2_scp_send)
 /* {{{ php_ssh2_direct_tcpip
  * Make a stream from a session
  */
-static php_stream *php_ssh2_direct_tcpip(LIBSSH2_SESSION *session, int resource_id, char *host, int port TSRMLS_DC)
+static php_stream *php_ssh2_direct_tcpip(LIBSSH2_SESSION *session, int resource_id, char *host, int port, char *shost, int sport TSRMLS_DC)
 {
 	LIBSSH2_CHANNEL *channel;
 	php_ssh2_channel_data *channel_data;
 	php_stream *stream;
 
-	channel = libssh2_channel_direct_tcpip(session, host, port);
+	channel = libssh2_channel_direct_tcpip_ex(session, host, port, shost, sport);
 	if (!channel) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to request a channel from remote host");
 		return NULL;
@@ -1099,6 +1099,9 @@ static php_stream *php_ssh2_fopen_wrapper_tunnel(php_stream_wrapper *wrapper, ch
 	char *host = NULL;
 	int port = 0;
 	int resource_id = 0;
+
+	char *shost = "127.0.0.1";
+	long sport = 22;
 
 	resource = php_ssh2_fopen_wraper_parse_path(path, "tunnel", context, &session, &resource_id, NULL, NULL TSRMLS_CC);
 	if (!resource || !session) {
@@ -1135,7 +1138,7 @@ static php_stream *php_ssh2_fopen_wrapper_tunnel(php_stream_wrapper *wrapper, ch
 		return NULL;
 	}
 		 
-	stream = php_ssh2_direct_tcpip(session, resource_id, host, port TSRMLS_CC);
+	stream = php_ssh2_direct_tcpip(session, resource_id, host, port, shost, sport TSRMLS_CC);
 	if (!stream) {
 		zend_list_delete(resource_id);
 	}
@@ -1172,13 +1175,17 @@ PHP_FUNCTION(ssh2_tunnel)
 	int host_len;
 	long port;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rsl", &zsession, &host, &host_len, &port) == FAILURE) {
+	char *shost = "127.0.0.1";
+	int shost_len;
+	long sport = 22;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rsl", &zsession, &host, &host_len, &port, &shost, &shost_len, &sport) == FAILURE) {
 		RETURN_FALSE;
 	}
 
 	ZEND_FETCH_RESOURCE(session, LIBSSH2_SESSION*, &zsession, -1, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
 
-	stream = php_ssh2_direct_tcpip(session, Z_LVAL_P(zsession), host, port TSRMLS_CC);
+	stream = php_ssh2_direct_tcpip(session, Z_LVAL_P(zsession), host, port, shost, sport TSRMLS_CC);
 	if (!stream) {
 		RETURN_FALSE;
 	}
